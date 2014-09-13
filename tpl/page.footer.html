@@ -6,4 +6,35 @@
 {/if}
 {if="isLoggedIn()"}
 <script language="JavaScript">function confirmDeleteLink() { var agree=confirm("Are you sure you want to delete this link ?"); if (agree) return true ; else return false ; }</script>
+{if="$GLOBALS['config']['OPEN_NEWS']"}
+<script language="JavaScript">
+    function moderateLink(element) {
+        var form = element.form;
+        var kvpairs = [];
+        for ( var i = 0; i < form.elements.length; i++ ) {
+           var e = form.elements[i];
+           kvpairs.push(encodeURIComponent(e.name) + "=" + encodeURIComponent(e.value));
+        }
+        var queryString = kvpairs.join("&");
+        var r = XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP"); 
+        r.open("POST", ".", true);
+        r.setRequestHeader( "Content-type", "application/x-www-form-urlencoded" ); 
+        r.onreadystatechange = function () {          
+          if (r.readyState == 4) {
+            if (r.status == 200) {
+                // Succes de la modération
+                element.src = "images/thumbs_icon.png";
+                element.title = "Validated link";
+            } else {
+                // Echec de la modération
+                element.src = "images/icon_skull.png";
+                element.title = "Moderation problem";
+                alert('Moderation has failed : ' + r.responseText);
+            }
+          }
+        };
+        r.send(queryString); // for POST requests
+    }
+</script>
+{/if}
 {/if}

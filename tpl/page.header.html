@@ -10,6 +10,8 @@
     <a href="?" class="nomobile">Home</a>
     {if="isLoggedIn()"}
         <a href="?do=logout">Logout</a><a href="?do=tools">Tools</a><a href="?do=addlink"><b>Add link</b></a>
+    {elseif="$GLOBALS['config']['OPEN_NEWS']"}
+        <a href="?do=login">Login</a><a href="?do=tools">Tools</a><a href="?do=addlink"><b>Add link</b></a>
     {elseif="$GLOBALS['config']['OPEN_SHAARLI']"}
         <a href="?do=tools">Tools</a><a href="?do=addlink"><b>Add link</b></a>
     {else}

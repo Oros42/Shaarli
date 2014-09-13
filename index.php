@@ -20,6 +20,7 @@ $GLOBALS['config']['IPBANS_FILENAME'] = $GLOBALS['config']['DATADIR'].'/ipbans.p
 $GLOBALS['config']['BAN_AFTER'] = 4;        // Ban IP after this many failures.
 $GLOBALS['config']['BAN_DURATION'] = 1800;  // Ban duration for IP address after login failures (in seconds) (1800 sec. = 30 minutes)
 $GLOBALS['config']['OPEN_SHAARLI'] = false; // If true, anyone can add/edit/delete links without having to login
+$GLOBALS['config']['OPEN_NEWS'] = false; // If true, anyone can add links without having to login. All links should be accepted by the admin to appear in RSS / ATOM flux
 $GLOBALS['config']['HIDE_TIMESTAMPS'] = false; // If true, the moment when links were saved are not shown to users that are not logged in.
 $GLOBALS['config']['ENABLE_THUMBNAILS'] = true; // Enable thumbnails in links.
 $GLOBALS['config']['CACHEDIR'] = 'cache'; // Cache directory for thumbnails for SLOW services (like flickr)
@@ -29,6 +30,7 @@ $GLOBALS['config']['PUBSUBHUB_URL'] = ''; // PubSubHubbub support. Put an empty 
 $GLOBALS['config']['UPDATECHECK_FILENAME'] = $GLOBALS['config']['DATADIR'].'/lastupdatecheck.txt'; // For updates check of Shaarli.
 $GLOBALS['config']['UPDATECHECK_INTERVAL'] = 86400 ; // Updates check frequency for Shaarli. 86400 seconds=24 hours
                                           // Note: You must have publisher.php in the same directory as Shaarli index.php
+if($GLOBALS['config']['OPEN_NEWS']){$GLOBALS['config']['OPEN_SHAARLI']=true;}
 // -----------------------------------------------------------------------------------------------
 // You should not touch below (or at your own risks !)
 // Optionnal config file.
@@ -322,7 +324,7 @@ function check_auth($login,$password)
 // Returns true if the user is logged in.
 function isLoggedIn()
 {
-    if ($GLOBALS['config']['OPEN_SHAARLI']) return true;
+    if ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']) return true;
 
     if (!isset($GLOBALS['login'])) return false;  // Shaarli is not configured yet.
 
@@ -904,7 +906,7 @@ function showRSS()
     $cached = $cache->cachedVersion(); if (!empty($cached)) { echo $cached; exit; }
 
     // If cached was not found (or not usable), then read the database and build the response:
-    $LINKSDB=new linkdb(isLoggedIn() || $GLOBALS['config']['OPEN_SHAARLI']);  // Read links from database (and filter private links if used it not logged in).
+    $LINKSDB=new linkdb(isLoggedIn() || ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']));  // Read links from database (and filter private links if used it not logged in).
 
     // Optionnaly filter the results:
     $linksToDisplay=array();
@@ -933,6 +935,12 @@ function showRSS()
     while ($i<$nblinksToDisplay && $i<count($keys))
     {
         $link = $linksToDisplay[$keys[$i]];
+        // Si le lien est en attente de modération, il est ignoré
+        if (hasModerationTag($link)) {
+            $nblinksToDisplay++;
+            $i++;
+            continue;
+        }
         $guid = $pageaddr.'?'.smallHash($link['linkdate']);
         $rfc822date = linkdate2rfc822($link['linkdate']);
         $absurl = htmlspecialchars($link['url']);
@@ -978,7 +986,7 @@ function showATOM()
     $cached = $cache->cachedVersion(); if (!empty($cached)) { echo $cached; exit; }
     // If cached was not found (or not usable), then read the database and build the response:
 
-    $LINKSDB=new linkdb(isLoggedIn() || $GLOBALS['config']['OPEN_SHAARLI']);  // Read links from database (and filter private links if used it not logged in).
+    $LINKSDB=new linkdb(isLoggedIn() || ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']));   // Read links from database (and filter private links if used it not logged in).
 
 
     // Optionnaly filter the results:
@@ -1000,6 +1008,12 @@ function showATOM()
     while ($i<$nblinksToDisplay && $i<count($keys))
     {
         $link = $linksToDisplay[$keys[$i]];
+        // Si le lien est en attente de modération, il est ignoré
+        if (hasModerationTag($link)) {
+            $nblinksToDisplay++;
+            $i++;
+            continue;
+        }
         $guid = $pageaddr.'?'.smallHash($link['linkdate']);
         $iso8601date = linkdate2iso8601($link['linkdate']);
         $latestDate = max($latestDate,$iso8601date);
@@ -1059,7 +1073,7 @@ function showDailyRSS()
     $cache = new pageCache(pageUrl(),startsWith($query,'do=dailyrss') && !isLoggedIn());
     $cached = $cache->cachedVersion(); if (!empty($cached)) { echo $cached; exit; }
     // If cached was not found (or not usable), then read the database and build the response:
-    $LINKSDB=new linkdb(isLoggedIn() || $GLOBALS['config']['OPEN_SHAARLI']);  // Read links from database (and filter private links if used it not logged in).
+    $LINKSDB=new linkdb(isLoggedIn() || ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']));   // Read links from database (and filter private links if used it not logged in).
 
     /* Some Shaarlies may have very few links, so we need to look
        back in time (rsort()) until we have enough days ($nb_of_days).
@@ -1127,7 +1141,7 @@ function showDailyRSS()
 // "Daily" page.
 function showDaily()
 {
-    $LINKSDB=new linkdb(isLoggedIn() || $GLOBALS['config']['OPEN_SHAARLI']);  // Read links from database (and filter private links if used it not logged in).
+    $LINKSDB=new linkdb(isLoggedIn() || ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']));   // Read links from database (and filter private links if used it not logged in).
 
 
     $day=Date('Ymd',strtotime('-1 day')); // Yesterday, in format YYYYMMDD.
@@ -1195,12 +1209,12 @@ function showDaily()
 // Render HTML page (according to URL parameters and user rights)
 function renderPage()
 {
-    $LINKSDB=new linkdb(isLoggedIn() || $GLOBALS['config']['OPEN_SHAARLI']);  // Read links from database (and filter private links if used it not logged in).
+    $LINKSDB=new linkdb(isLoggedIn() || ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']));   // Read links from database (and filter private links if used it not logged in).
 
     // -------- Display login form.
     if (isset($_SERVER["QUERY_STRING"]) && startswith($_SERVER["QUERY_STRING"],'do=login'))
     {
-        if ($GLOBALS['config']['OPEN_SHAARLI']) { header('Location: ?'); exit; }  // No need to login for open Shaarli
+        if ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']) { header('Location: ?'); exit; }  // No need to login for open Shaarli
         $token=''; if (ban_canLogin()) $token=getToken(); // Do not waste token generation if not useful.
         $PAGE = new pageBuilder;
         $PAGE->assign('token',$token);
@@ -1328,7 +1342,7 @@ function renderPage()
     }
 
     // -------- Handle other actions allowed for non-logged in users:
-    if (!isLoggedIn())
+    if (!isLoggedIn() && !$GLOBALS['config']['OPEN_SHAARLI'])
     {
         // User tries to post new link but is not loggedin:
         // Show login screen, then redirect to ?post=...
@@ -1487,6 +1501,12 @@ function renderPage()
         $link = array('title'=>trim($_POST['lf_title']),'url'=>$url,'description'=>trim($_POST['lf_description']),'private'=>(isset($_POST['lf_private']) ? 1 : 0),
                       'linkdate'=>$linkdate,'tags'=>str_replace(',',' ',$tags));
         if ($link['title']=='') $link['title']=$link['url']; // If title is empty, use the URL as title.
+        // Si le tag de modération n'est pas positionné
+        // On le positionne
+        // Uniquement pour les non connectés
+        if (!isLoggedIn()) {
+            $link = addModerationTag($link);
+        }
         $LINKSDB[$linkdate] = $link;
         $LINKSDB->savedb(); // save to disk
         pubsubhub();
@@ -1544,6 +1564,33 @@ function renderPage()
         exit;
     }
 
+    // Le modérateur clique sur le bouton "Moderate" : Supprime le tag "a_modere" du lien.
+    if (isset($_POST['moderate_link']))
+    {
+        if (!isLoggedIn()) {
+            header("HTTP/1.1 401 Unauthorized"); 
+            die('Not connected.');
+        }
+        if (!tokenOk($_POST['token'])) {
+            header("HTTP/1.1 401 Unauthorized"); 
+            die('Wrong token.');
+        }
+        
+        $link = $LINKSDB[$_POST['moderate_link']];    // Read database
+        
+        if (!$link) { // Link not found in database.
+            header("HTTP/1.1 404 Not Found"); 
+            die('Link not found.'); 
+        } 
+      
+        // Suppression du tag de modération
+        $link = deleteModerateTag($link);
+
+        // Sauvegarde du lien
+        $LINKSDB[$_POST['moderate_link']] = $link;
+        $LINKSDB->savedb(); 
+    }
+
     // -------- User want to post a new link: Display link edit form.
     if (isset($_GET['post']))
     {
@@ -1596,6 +1643,12 @@ function renderPage()
             }
             if ($url=='') $url='?'.smallHash($linkdate); // In case of empty URL, this is just a text (with a link that point to itself)
             $link = array('linkdate'=>$linkdate,'title'=>$title,'url'=>$url,'description'=>$description,'tags'=>$tags,'private'=>$private);
+        }else {
+            // Dans le cas d'une édition de lien
+            // Si l'utilisateur n'est pas connecté
+            // on l'ejecte
+            // Seuls les modo peuvent éditer un lien
+            if (!isLoggedIn()) { header('Location: ?'); exit; } 
         }
 
         $PAGE = new pageBuilder;
@@ -1636,6 +1689,12 @@ function renderPage()
 HTML;
         foreach($LINKSDB as $link)
         {
+            // Si le lien est en attente de modération, 
+            // il est ignoré pour l'export
+            // seulement pour les non modérateurs
+            if (!isLoggedIn() && hasModerationTag($link)) {
+                continue;
+            }
             if ($exportWhat=='all' ||
                ($exportWhat=='private' && $link['private']!=0) ||
                ($exportWhat=='public' && $link['private']==0))
@@ -1688,7 +1747,7 @@ HTML;
 function importFile()
 {
     if (!(isLoggedIn() || $GLOBALS['config']['OPEN_SHAARLI'])) { die('Not allowed.'); }
-    $LINKSDB=new linkdb(isLoggedIn() || $GLOBALS['config']['OPEN_SHAARLI']);  // Read links from database (and filter private links if used it not logged in).
+    $LINKSDB=new linkdb(isLoggedIn() || ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']));   // Read links from database (and filter private links if used it not logged in).
     $filename=$_FILES['filetoupload']['name'];
     $filesize=$_FILES['filetoupload']['size'];
     $data=file_get_contents($_FILES['filetoupload']['tmp_name']);
@@ -2215,7 +2274,7 @@ function processWS()
 {
     if (empty($_GET['ws']) || empty($_GET['term'])) return;
     $term = $_GET['term'];
-    $LINKSDB=new linkdb(isLoggedIn() || $GLOBALS['config']['OPEN_SHAARLI']);  // Read links from database (and filter private links if used it not logged in).
+    $LINKSDB=new linkdb(isLoggedIn() || ($GLOBALS['config']['OPEN_SHAARLI'] && !$GLOBALS['config']['OPEN_NEWS']));   // Read links from database (and filter private links if used it not logged in).
     header('Content-Type: application/json; charset=utf-8');
 
     // Search in tags (case insentitive, cumulative search)
@@ -2494,6 +2553,86 @@ function invalidateCaches()
 {
     unset($_SESSION['tags']);  // Purge cache attached to session.
     pageCache::purgeCache();   // Purge page cache shared by sessions.
+}
+
+/**
+* Indique si un lien 
+* possède un tag de modération
+*
+* @return bool : true si le lien doit être modéré
+*/
+function hasModerationTag($link) {
+    $tagAModerer = getModerationTag();
+    
+    if (false !== strpos($link['tags'], $tagAModerer)) {
+        // On vérifie que ce n'est pas un faux positif 
+        // ex 'a_moderer_haha'
+        $tags = explode(' ', $link['tags']);
+        foreach ($tags as $tag) {
+            if ($tagAModerer === $tag) {
+                return true;
+            }
+        }
+    }    
+    
+    return false;
+}
+
+/**
+* Pose un tag de modération à un lien
+*
+* @return void
+*/
+function addModerationTag($link) {
+    if (!isset($link['tags'])) {
+        $link['tags'] = '';
+    }
+    
+    if (!hasModerationTag($link)) {
+        $tagAModerer = getModerationTag();
+        $link['tags'] = trim(sprintf('%s %s', $link['tags'], $tagAModerer));
+    }
+
+    return $link;
+}
+
+/**
+* Supprime le tag de modération à un lien
+*
+* @return void
+*/
+function deleteModerateTag($link) {
+    if (!isset($link['tags'])) {
+        return null;
+    }
+    
+    if (hasModerationTag($link)) {
+        $tagAModerer = getModerationTag();
+        $tags = explode(' ', $link['tags']);
+        foreach ($tags as $k => $tag) {
+            if ($tagAModerer === $tag) {
+                unset($tags[$k]);
+            }
+        }
+        $link['tags'] = implode(' ', $tags);
+    }
+    
+    return $link;
+}
+
+/**
+* Récupère la valeur du tag de modération
+*
+* @return void
+*/
+function getModerationTag() {
+
+    if(isset($GLOBALS['moderateTag'])) {
+    
+        return $GLOBALS['moderateTag'];
+    } 
+    
+    return 'a_moderer';
 }
 
 if (isset($_SERVER["QUERY_STRING"]) && startswith($_SERVER["QUERY_STRING"],'do=genthumbnail')) { genThumbnail(); exit; }  // Thumbnail generation/cache does not need the link database.
