@@ -20,7 +20,7 @@ $GLOBALS['config']['IPBANS_FILENAME'] = $GLOBALS['config']['DATADIR'].'/ipbans.p
 $GLOBALS['config']['BAN_AFTER'] = 4;        // Ban IP after this many failures.
 $GLOBALS['config']['BAN_DURATION'] = 1800;  // Ban duration for IP address after login failures (in seconds) (1800 sec. = 30 minutes)
 $GLOBALS['config']['OPEN_SHAARLI'] = false; // If true, anyone can add/edit/delete links without having to login
-$GLOBALS['config']['OPEN_NEWS'] = true; // If true, anyone can add links without having to login. All links should be accepted by the admin to appear in RSS / ATOM flux
+$GLOBALS['config']['OPEN_NEWS'] = false; // If true, anyone can add links without having to login. All links should be accepted by the admin to appear in RSS / ATOM flux
 $GLOBALS['config']['HIDE_TIMESTAMPS'] = false; // If true, the moment when links were saved are not shown to users that are not logged in.
 $GLOBALS['config']['ENABLE_THUMBNAILS'] = true; // Enable thumbnails in links.
 $GLOBALS['config']['CACHEDIR'] = 'cache'; // Cache directory for thumbnails for SLOW services (like flickr)
